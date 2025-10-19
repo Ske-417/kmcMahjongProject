@@ -1,14 +1,14 @@
 // 簡易 役判定モジュール (yaku.js)
-// export せずにブラウザで直接利用できるように global に関数を公開します。
-// 主な提供関数:
+// ブラウザで直接利用できるように window.YakuEvaluator を公開します。
+// 提供関数:
 //   evaluateHand(tilesArray, options)
-//     tilesArray: ['1m','3p','E',...]
+//     tilesArray: ['1m','3p','E',...] (14枚)
 //     options: { seatWind: 0 } // 0: 東,1:南,2:西,3:北
-//   戻り値: { agari: bool, yakus: [{name, han}], totalHan: number, details: {isChiitoitsu, usedSequence} }
+//   戻り値: { agari: bool, yakus: [{name, han}], totalHan: number, details: {...} }
 
 (function(global){
-  // マッピング: 0..26 数牌 (m,p,s) -> 0..26, 字牌: 27..33 (E,S,W,N,P,F,C)
   const honors = ['E','S','W','N','P','F','C']; // 東 南 西 北 白 發 中
+
   function tileToIndex(t){
     const m = t.match(/^([1-9])([mps])$/);
     if(m){
@@ -32,7 +32,6 @@
 
   // 七対子判定
   function isChiitoitsu(counts){
-    // 14枚 && exactly 7 pairs (count ==2)
     let pairs = 0; let total = 0;
     for(let i=0;i<34;i++){
       total += counts[i];
@@ -43,28 +42,26 @@
   }
 
   // 再帰で面子に分解できるか判定、かつ sequence を使ったかを返す
-  // counts はコピーして渡すこと
   function canFormMelds(counts){
-    // find first non-zero
     let i = 0;
     for(; i<34; i++) if(counts[i]>0) break;
     if(i===34) return {ok:true, usedSequence:false};
-    // try triplet
+    // triplet
     if(counts[i] >= 3){
       counts[i] -= 3;
       const res = canFormMelds(counts);
       counts[i] += 3;
       if(res.ok) return {ok:true, usedSequence: res.usedSequence};
     }
-    // try sequence (only for numbered tiles)
-    if(i < 27){ // numbered
+    // sequence
+    if(i < 27){
       const posInSuit = i % 9;
       if(posInSuit <= 6){
         if(counts[i+1]>0 && counts[i+2]>0){
           counts[i]--; counts[i+1]--; counts[i+2]--;
           const res = canFormMelds(counts);
           counts[i]++; counts[i+1]++; counts[i+2]++;
-          if(res.ok) return {ok:true, usedSequence: true}; // any sequence used => usedSequence true
+          if(res.ok) return {ok:true, usedSequence: true};
         }
       }
     }
@@ -72,7 +69,6 @@
   }
 
   // 通常和了判定：任意の対子を取って残りを 4 面子に分解できるか
-  // 戻り値: {agari:bool, usedSequence:bool, pairIndex: number | null}
   function isStandardAgari(counts){
     let total = counts.reduce((a,b)=>a+b,0);
     if(total !== 14) return {agari:false};
@@ -91,12 +87,11 @@
 
   // タンヤオ判定（字牌・1/9 が含まれない）
   function isTanyao(counts){
-    // if any honor or terminal exists -> false
     for(let i=0;i<34;i++){
       if(counts[i] === 0) continue;
-      if(i>=27) return false; // honor present
+      if(i>=27) return false;
       const pos = i % 9;
-      if(pos === 0 || pos === 8) return false; // 1 or 9
+      if(pos === 0 || pos === 8) return false;
     }
     return true;
   }
@@ -125,35 +120,32 @@
     return suitPresent.filter(Boolean).length === 1;
   }
 
-  // 対々和判定（全て刻子もしくは槓。ここでは sequence を使わずに面子分解可能であることで判定）
+  // 対々和判定（全て刻子）
   function isToitoi(usedSequenceFlag){
-    // usedSequenceFlag == false なら面子は全て刻子（少なくとも1 sequence を使わない）
     return usedSequenceFlag === false;
   }
 
-  // 役牌 (役牌は刻子が必要)。ここでは counts の値 >=3 で判定する（簡易）
+  // 役牌 (簡易: counts >= 3)
   function detectYakuhai(counts, seatWind){
     const yakus = [];
-    // seat wind index: E,S,W,N -> 27..30
     const seatIdx = 27 + (seatWind || 0);
     if(counts[seatIdx] >= 3){
-      yakus.push({name: '自風（場/自分の風）役牌', han: 1});
+      yakus.push({name: '自風（役牌）', han: 1});
     }
     // dragons: P(白)=31, F(發)=32, C(中)=33
     const dragonIdx = [31,32,33];
+    const dragonNames = {31:'P',32:'F',33:'C'};
     for(const di of dragonIdx){
       if(counts[di] >= 3){
-        yakus.push({name: '役牌（' + honors[di-27] + '）', han: 1});
+        yakus.push({name: '役牌（' + dragonNames[di] + '）', han: 1});
       }
     }
     return yakus;
   }
 
-  // メイン: 手牌を評価して役一覧を返す
   function evaluateHand(tiles, options){
     options = options || {};
     const seatWind = (typeof options.seatWind === 'number') ? options.seatWind : 0;
-    // validate length
     if(!Array.isArray(tiles)) throw new Error('tiles must be array of strings');
     const counts = countTiles(tiles);
     const total = counts.reduce((a,b)=>a+b,0);
@@ -168,8 +160,6 @@
     if(isChiitoitsu(counts)){
       details.isChiitoitsu = true;
       yakus.push({name:'七対子', han:2});
-      // 七対子の場合、役牌は基本的には加算しない（ルールにより異なるためここでは非加算）
-      // ただしローカルルールで加える場合はここで判定を追加できる
       const totalHan = yakus.reduce((s,y)=>s+y.han,0);
       return { agari:true, yakus, totalHan, details };
     }
@@ -186,7 +176,7 @@
     // タンヤオ
     if(isTanyao(counts)) yakus.push({name:'タンヤオ', han:1});
 
-    // 役牌（簡易：刻子がある場合）
+    // 役牌
     const yakuhaiList = detectYakuhai(counts, seatWind);
     yakuhaiList.forEach(y=>yakus.push(y));
 
@@ -202,13 +192,11 @@
       yakus.push({name:'混一色', han:3});
     }
 
-    // 合計翻数
     const totalHan = yakus.reduce((s,y)=>s+y.han,0);
 
     return { agari:true, yakus, totalHan, details: { pairIndex: agariInfo.pairIndex, usedSequence: agariInfo.usedSequence } };
   }
 
-  // 公開
   global.YakuEvaluator = {
     evaluateHand,
     tileToIndex,
