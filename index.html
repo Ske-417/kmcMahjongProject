@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>麻雀</title>
+  <style>
+    :root{
+      --bg:#0f1724;
+      --panel:#0b1220;
+      --accent:#1f2937;
+      --tile-bg:#fff;
+      --tile-border:#ddd;
+      --text:#e6eef8;
+      --muted:#9aa7b8;
+    }
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--bg),#071025);color:var(--text);font-family:Inter, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;}
+    .app{display:flex;flex-direction:column;gap:12px;min-height:100vh;padding:18px;box-sizing:border-box;}
+    header{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+    header h1{margin:0;font-size:18px;font-weight:600;}
+    header .controls{display:flex;gap:8px;align-items:center;}
+    button{background:var(--accent);color:var(--text);border:1px solid rgba(255,255,255,0.04);padding:8px 12px;border-radius:8px;cursor:pointer;}
+    button:hover{opacity:0.95;transform:translateY(-1px);}
+    main{display:flex;gap:12px;flex:1;}
+    .left-panel{width:360px;display:flex;flex-direction:column;gap:12px;}
+    .panel{background:linear-gradient(180deg,var(--panel),#081020);padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.03);box-shadow:0 6px 18px rgba(2,6,23,0.6);}
+    .game-area{flex:1;display:flex;flex-direction:column;gap:12px;align-items:center;justify-content:center;position:relative;}
+    /* 麻雀テーブルのレイアウト */
+    .table{
+      width:720px;height:480px;border-radius:20px;background:radial-gradient(ellipse at center,#08303a 0%, #021018 60%);
+      display:grid;grid-template-columns:1fr auto 1fr;grid-template-rows:1fr auto 1fr;padding:18px;box-sizing:border-box;
+      align-items:center;justify-items:center;gap:12px;
+      position:relative;
+    }
+    .player-zone{width:260px;height:80px;background:rgba(255,255,255,0.02);border-radius:8px;display:flex;align-items:center;gap:8px;padding:8px;box-sizing:border-box;}
+    .player-zone .name{font-size:14px;color:var(--muted);}
+    .hand{display:flex;gap:6px;overflow:auto;padding:6px;}
+    .tile{
+      min-width:44px;height:64px;background:var(--tile-bg);color:#222;border-radius:6px;border:1px solid var(--tile-border);
+      display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;box-shadow:0 2px 6px rgba(0,0,0,0.4);
+      cursor:pointer;user-select:none;
+    }
+    .tile.locked{opacity:0.4;cursor:default;}
+    .wall{width:160px;height:36px;background:linear-gradient(90deg,#0a5566,#053a44);border-radius:6px;display:flex;align-items:center;justify-content:center;color:#cfeff5;font-weight:600;}
+    .discards{width:320px;height:120px;background:rgba(0,0,0,0.15);border-radius:8px;padding:8px;display:grid;grid-template-columns:repeat(12,1fr);grid-auto-rows:28px;gap:6px;overflow:auto;}
+    .log{height:120px;overflow:auto;background:linear-gradient(180deg,#031621,#001018);padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.02);font-size:13px;color:var(--muted);}
+    .status{font-size:13px;color:var(--muted);}
+    footer{display:flex;gap:8px;align-items:center;justify-content:space-between;}
+    @media(max-width:900px){
+      .table{width:100%;height:420px;}
+      .left-panel{width:100%;}
+      main{flex-direction:column;}
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>麻雀サイト（開発ベース）</h1>
+      <div class="controls">
+        <button id="btn-deal">配牌 (Deal)</button>
+        <button id="btn-draw">ツモ (Draw)</button>
+        <button id="btn-reset">リセット</button>
+        <div class="status" id="status">状態: 待機中</div>
+      </div>
+    </header>
+
+    <main>
+      <div class="left-panel">
+        <div class="panel">
+          <h3 style="margin:0 0 8px 0;">プレイヤー</h3>
+          <div id="players">
+            <!-- プレイヤーリスト（自分は東家として index 0） -->
+            <div class="player-zone" data-player="0"><div style="flex:1"><div class="name">東: あなた</div><div class="hand" id="hand-0"></div></div></div>
+            <div class="player-zone" data-player="1"><div style="flex:1"><div class="name">南: プレイヤー2</div><div class="hand" id="hand-1"></div></div></div>
+            <div class="player-zone" data-player="2"><div style="flex:1"><div class="name">西: プレイヤー3</div><div class="hand" id="hand-2"></div></div></div>
+            <div class="player-zone" data-player="3"><div style="flex:1"><div class="name">北: プレイヤー4</div><div class="hand" id="hand-3"></div></div></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3 style="margin:0 0 8px 0;">捨て牌</h3>
+          <div class="discards" id="discards"></div>
+        </div>
+
+        <div class="panel">
+          <h3 style="margin:0 0 8px 0;">ログ</h3>
+          <div class="log" id="log"></div>
+        </div>
+      </div>
+
+      <div class="game-area panel">
+        <div class="table" id="table">
+          <div style="grid-column:1 / span 3; display:flex;align-items:center;justify-content:center;gap:12px;">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+              <div class="player-zone" style="width:340px;height:86px;display:flex;align-items:center;justify-content:center;">
+                <div style="text-align:center;">
+                  <div class="name">上家 (南側)</div>
+                  <div id="hand-top" class="hand" style="justify-content:center;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style="grid-row:2;grid-column:2;display:flex;flex-direction:column;align-items:center;gap:12px;">
+            <div class="wall" id="wall">山: 0</div>
+            <div class="wall" id="turn">ターン: -</div>
+          </div>
+
+          <div style="grid-row:3;grid-column:1 / span 3;display:flex;align-items:center;justify-content:center;gap:12px;">
+            <div class="player-zone" style="width:520px;height:120px;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+              <div style="text-align:center;">
+                <div class="name">下家 (あなた側)</div>
+                <div id="hand-bottom" class="hand" style="margin-top:8px;"></div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <footer style="width:100%;">
+          <div style="display:flex;gap:8px;">
+            <button id="btn-auto-play">自動プレイ (簡易AI)</button>
+            <button id="btn-show-tiles">タイルセット 表示</button>
+          </div>
+
+          <div style="font-size:13px;color:var(--muted);">
+            開発用ベース UI — 機能を拡張して実ゲームを実装してください
+          </div>
+        </footer>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // ----- 簡易的な麻雀タイル表現 -----
+    // 牌はシンプルに文字列で表す ("1m" 〜 "9m", "1p"〜"9p", "1s"〜"9s", "E","S","W","N","P","F","C")
+    // 実運用では画像や SVG を用意すると見た目が良くなります。
+    const suits = ['m','p','s'];
+    const tiles = [];
+
+    // 牌山を生成（通常の136牌: 各牌4枚）
+    function buildWall(){
+      const w = [];
+      for(const s of suits){
+        for(let i=1;i<=9;i++){
+          for(let c=0;c<4;c++){
+            w.push(i + s);
+          }
+        }
+      }
+      // 字牌
+      const honors = ['E','S','W','N','P','F','C']; // 東南西北 白 發 中
+      for(const h of honors){
+        for(let c=0;c<4;c++) w.push(h);
+      }
+      return w;
+    }
+
+    function shuffle(array){
+      for(let i=array.length-1;i>0;i--){
+        const j=Math.floor(Math.random()*(i+1));
+        [array[i],array[j]]=[array[j],array[i]];
+      }
+    }
+
+    // ゲーム状態
+    const state = {
+      wall: [],
+      hands: [[],[],[],[]],
+      discards: [],
+      turn: 0 // プレイヤー index (0=東=あなた)
+    };
+
+    // DOM elements
+    const logEl = document.getElementById('log');
+    const handEls = [document.getElementById('hand-0'),document.getElementById('hand-1'),document.getElementById('hand-2'),document.getElementById('hand-3')];
+    const discardsEl = document.getElementById('discards');
+    const wallEl = document.getElementById('wall');
+    const statusEl = document.getElementById('status');
+
+    function log(msg){
+      const time = new Date().toLocaleTimeString();
+      logEl.innerHTML = `<div>[${time}] ${msg}</div>` + logEl.innerHTML;
+    }
+
+    function renderHands(){
+      for(let i=0;i<4;i++){
+        const el = handEls[i];
+        el.innerHTML = '';
+        for(let j=0;j<state.hands[i].length;j++){
+          const t = state.hands[i][j];
+          const tileEl = document.createElement('div');
+          tileEl.className = 'tile';
+          tileEl.textContent = t;
+          // 自分の手牌 (0) のみクリックで捨てられる
+          if(i===0){
+            tileEl.addEventListener('click',()=>{ discardFromHand(0,j); });
+          } else {
+            tileEl.classList.add('locked');
+          }
+          el.appendChild(tileEl);
+        }
+      }
+      // 画面下の手札コピー
+      document.getElementById('hand-bottom').innerHTML = document.getElementById('hand-0').innerHTML;
+      document.getElementById('hand-top').innerHTML = document.getElementById('hand-2').innerHTML;
+    }
+
+    function renderDiscards(){
+      discardsEl.innerHTML = '';
+      for(const d of state.discards){
+        const tileEl = document.createElement('div');
+        tileEl.className = 'tile locked';
+        tileEl.style.width = '100%';
+        tileEl.style.height = '100%';
+        tileEl.textContent = d.player + ':' + d.tile;
+        discardsEl.appendChild(tileEl);
+      }
+    }
+
+    function updateWall(){
+      wallEl.textContent = `山: ${state.wall.length}`;
+    }
+
+    // 配牌
+    function deal(){
+      state.wall = buildWall();
+      shuffle(state.wall);
+      // 13枚ずつ配り、親は14枚（自分を親と仮定）
+      for(let i=0;i<4;i++) state.hands[i]=[];
+      for(let round=0;round<3;round++){
+        for(let p=0;p<4;p++){
+          for(let k=0;k<4;k++){
+            state.hands[p].push(state.wall.pop());
+          }
+        }
+      }
+      // 残り1〜5枚配って合計13
+      for(let p=0;p<4;p++){
+        state.hands[p].push(state.wall.pop());
+      }
+      // 親(0)にさらに1枚（ツモ用で14枚）
+      state.hands[0].push(state.wall.pop());
+
+      // ソート（表示用。実際の麻雀ではソート基準を変えられる）
+      for(let i=0;i<4;i++) state.hands[i].sort();
+
+      state.discards=[];
+      state.turn = 0;
+      updateWall();
+      renderHands();
+      renderDiscards();
+      statusEl.textContent = '状態: 配牌済み（あなたが親 / 東）';
+      log('配牌しました。あなたは親（東）です。');
+    }
+
+    // 捨て牌処理（手札から）
+    function discardFromHand(playerIndex, tileIndex){
+      if(playerIndex !== state.turn){
+        log('今のターンではありません。');
+        return;
+      }
+      const tile = state.hands[playerIndex].splice(tileIndex,1)[0];
+      state.discards.unshift({player: playerIndex, tile});
+      renderHands();
+      renderDiscards();
+      log(`プレイヤー ${playerIndex} が ${tile} を切りました。`);
+      // 次のプレイヤーへ
+      nextTurn();
+    }
+
+    // ツモ（山から1枚引く）
+    function drawTile(){
+      if(state.wall.length===0){
+        log('山がありません。');
+        statusEl.textContent = '状態: 山が枯れました';
+        return;
+      }
+      const tile = state.wall.pop();
+      state.hands[state.turn].push(tile);
+      state.hands[state.turn].sort();
+      updateWall();
+      renderHands();
+      log(`プレイヤー ${state.turn} が ${tile} をツモしました。`);
+    }
+
+    // 単純なターン進行
+    function nextTurn(){
+      state.turn = (state.turn + 1) % 4;
+      statusEl.textContent = `状態: プレイヤー ${state.turn} のターン`;
+      document.getElementById('turn').textContent = `ターン: ${state.turn}`;
+    }
+
+    // 自動プレイ（極簡易：ツモして最初のタイルを切る）
+    function autoPlayOnce(){
+      // AIプレイヤーはツモして、手前の牌を切るシンプルな戦略
+      drawTile();
+      const p = state.turn;
+      // AIが切るのは一番左の牌（自分の手をソートしてあるためランダム）
+      if(state.hands[p].length>0){
+        // AIの切る処理は少し遅らせる
+        setTimeout(()=>{
+          // AI の場合は playerIndex が現在のターンであることに注意
+          const tileIndex = 0;
+          // 手番が変わらないようにコピー currentTurn
+          const currentTurn = state.turn;
+          // For AI we simulate the discard
+          const tile = state.hands[currentTurn].splice(tileIndex,1)[0];
+          state.discards.unshift({player: currentTurn, tile});
+          renderHands();
+          renderDiscards();
+          log(`AI (プレイヤー ${currentTurn}) が ${tile} を切りました。`);
+          nextTurn();
+        }, 400);
+      } else {
+        nextTurn();
+      }
+    }
+
+    // ------- ボタンイベント --------
+    document.getElementById('btn-deal').addEventListener('click', deal);
+    document.getElementById('btn-draw').addEventListener('click', ()=>{
+      drawTile();
+    });
+    document.getElementById('btn-reset').addEventListener('click', ()=>{
+      state.wall=[];state.hands=[[],[],[],[]];state.discards=[];state.turn=0;
+      renderHands();renderDiscards();updateWall();
+      statusEl.textContent = '状態: リセット済み';
+      log('ゲームをリセットしました。');
+    });
+
+    document.getElementById('btn-auto-play').addEventListener('click', ()=>{
+      // シンプルに1ターン分のAI進行を行う（自分→AI→...）
+      // ここでは自分以外のプレイヤーに対して自動でツモ切りを行うループを実装
+      const steps = 4;
+      let i = 0;
+      function step(){
+        if(i>=steps) return;
+        if(state.turn === 0){
+          // 自分のターンのときは自動であなたがツモして最初の牌を切る（開発用）
+          drawTile();
+          // 自分が切るのは最後の牌
+          setTimeout(()=>{ if(state.hands[0].length){
+            const t = state.hands[0].pop();
+            state.discards.unshift({player:0,tile:t});
+            renderHands();renderDiscards();log(`あなたが ${t} を切りました（自動）。`); nextTurn(); i++; step();
+          }},300);
+        } else {
+          // AI ターン
+          drawTile();
+          setTimeout(()=>{ autoPlayOnce(); i++; step(); }, 500);
+        }
+      }
+      step();
+    });
+
+    document.getElementById('btn-show-tiles').addEventListener('click', ()=>{
+      alert('牌表現: 1m-9m (萬子), 1p-9p (筒子), 1s-9s (索子), E S W N (東南西北), P(白) F(發) C(中)');
+    });
+
+    // 初期描画
+    updateWall();
+    renderHands();
+    renderDiscards();
+    log('ベースページを読み込みました。配牌ボタンでゲームを開始できます。');
+
+    // --- 今後の拡張案（コメント） ---
+    // - 牌の画像やSVGを用意し、見た目を向上
+    // - ロビー／対局ルーム、ネットワーク対戦（WebSocket）
+    // - 役判定、和了処理、得点計算
+    // - 鳴き（ポン・チー・カン）、副露テロップ、ツモやロンの割り込み処理
+    // - 観戦モード、ログの永続保存、リプレイ機能
+  </script>
+</body>
+</html>
