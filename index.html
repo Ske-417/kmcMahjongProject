@@ -3,29 +3,75 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>簡易麻雀プロトタイプ</title>
+  <title>和了判定付き 麻雀プロトタイプ（日本式・AIあり）</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <h1>簡易麻雀プロトタイプ</h1>
+  <h1>和了判定付き 麻雀プロトタイプ（日本式・AIあり）</h1>
+
+  <div id="controls-row">
+    <button id="new-game">新しい局を開始</button>
+    <button id="draw-button">ツモ（自分）</button>
+    <label><input type="checkbox" id="auto-ai" /> AI自動打牌</label>
+    <label>親（場風）
+      <select id="round-wind">
+        <option value="E">東</option>
+        <option value="S">南</option>
+      </select>
+    </label>
+    <label>自分の風
+      <select id="seat-wind">
+        <option value="S">南</option>
+        <option value="E">東</option>
+        <option value="W">西</option>
+        <option value="N">北</option>
+      </select>
+    </label>
+    <label>ツモ/ロン:
+      <select id="win-method">
+        <option value="ron">ロン</option>
+        <option value="tsumo">ツモ</option>
+      </select>
+    </label>
+    <button id="evaluate-hand">和了判定・点数計算</button>
+  </div>
+
   <div id="game">
     <div class="opponent" id="player-north">北: <span class="count">0</span>枚</div>
+
     <div class="middle-row">
       <div class="opponent" id="player-west">西: <span class="count">0</span>枚</div>
+
       <div id="table">
         <div id="wall">山: <span id="wall-count">0</span></div>
         <div id="discard-pile">捨て牌:</div>
       </div>
+
       <div class="opponent" id="player-east">東: <span class="count">0</span>枚</div>
     </div>
+
     <div id="player-south-area">
       <div id="player-south">あなたの手牌:</div>
-      <div id="controls">
-        <button id="draw-button">ツモ</button>
-        <button id="new-game">新しい局を開始</button>
-      </div>
+      <div id="melds">副露: なし</div>
     </div>
   </div>
+
+  <div id="result-area">
+    <h2>和了判定結果</h2>
+    <div id="yaku-list"></div>
+    <div id="score-summary"></div>
+  </div>
+
+  <template id="tile-template">
+    <div class="tile">
+      <div class="tile-inner">
+        <svg class="tile-face" viewBox="0 0 100 140" preserveAspectRatio="xMidYMid meet">
+          <rect x="2" y="2" width="96" height="136" rx="6" ry="6" fill="white" stroke="#444" stroke-width="2"></rect>
+          <g class="tile-content" transform="translate(6,6)"></g>
+        </svg>
+      </div>
+    </div>
+  </template>
 
   <script src="script.js"></script>
 </body>
