@@ -30,9 +30,9 @@ label { font-size:13px; display:flex; align-items:center; gap:6px; }
 /* 副露表示 */
 #melds { padding:8px; min-width:160px; background:#fff; border-radius:6px; box-shadow:0 1px 3px rgba(0,0,0,0.04); }
 
-/* 牌表示（タイルを小さく、テキストはSVGで大きめに確保） */
-/* タイルの外形は小さめに（ユーザ指定の「小さく」） */
-.tile { width: 20px; height: 30px; cursor: pointer; user-select: none; display:inline-block; vertical-align:middle; }
+/* 牌表示（タイルの四角はやや小さめ、内部の絵/文字は大きく） */
+/* メイン牌（手牌）サイズ */
+.tile { width: 36px; height: 54px; cursor: pointer; user-select: none; display:inline-block; vertical-align:middle; }
 .tile svg { width:100%; height:100%; display:block; overflow:visible; }
 .tile .tile-content text { font-family:"Hiragino Kaku Gothic Pro","メイリオ", system-ui; dominant-baseline:middle; text-anchor:middle; }
 
@@ -44,11 +44,11 @@ label { font-size:13px; display:flex; align-items:center; gap:6px; }
 .discard-title { font-size:12px; color:#666; margin-bottom:6px; text-align:center; }
 .discard-pile { display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-start; align-items:center; min-height:36px; }
 
-/* 捨て牌個別サイズ（小さいタイル） */
-.discard-pile .tile { width: 20px; height: 30px; }
+/* 捨て牌個別サイズ（小サイズ） */
+.discard-pile .tile { width: 26px; height: 40px; }
 
 /* 自分の捨て牌は最大6個で折り返す（幅を6枚に制限） */
-#discard-pile-south { max-width: calc(6 * 20px + 5 * 6px); }
+#discard-pile-south { max-width: calc(6 * 26px + 5 * 6px); }
 
 /* 結果表示 */
 #result-area { width:80vw; max-width:1200px; margin: 0 auto 18px auto; background:#fff; padding:12px; border-radius:6px; box-shadow:0 1px 3px rgba(0,0,0,0.06); }
@@ -58,8 +58,8 @@ label { font-size:13px; display:flex; align-items:center; gap:6px; }
 /* 小画面対応 */
 @media (max-width: 640px) {
   #game, #result-area { width:95vw; }
-  .tile { width: 16px; height: 24px; }
-  .discard-pile .tile { width: 16px; height: 24px; }
-  #discard-pile-south { max-width: calc(6 * 16px + 5 * 6px); }
+  .tile { width: 28px; height: 42px; }
+  .discard-pile .tile { width: 20px; height: 30px; }
+  #discard-pile-south { max-width: calc(6 * 20px + 5 * 6px); }
   .left-column, .right-column { width:100px; }
 }
