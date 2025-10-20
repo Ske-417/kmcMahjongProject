@@ -1,13 +1,9 @@
-// 完全コピペで動く：捨て牌を4箇所に分割し、捨ては右に増えていくUIへ改良
-// 既存の和了判定や牌描画機能は保持。副露は将来対応箇所あり。
-// 主な変更点:
-// - state.discards: 各プレイヤーごとの捨て牌配列に変更（state.discards[0..3]）
-// - renderAll() で各プレイヤーの捨て牌エリアに追加（appendで右へ増える）
-// - deal() で捨て牌をリセット
-// - discardTile() が該当プレイヤーの捨て牌配列へ push するように
+// 麻雀プロトタイプ：UI改良版（捨て牌を4箇所に分割、捨ては右へ増える、自分の手牌は横並び）
+// 和了判定ロジックは元の実装を保持（evaluateHand 等）
+// 牌のサイズを小さくし、文字を大きく表示するようSVGを調整
 
 /* ---------------------------
-   牌の表現（変更なし）
+   牌の表現
    --------------------------- */
 const tileTypes = (() => {
   const suits = ['m','p','s']; // 萬子, 筒子, 索子
@@ -34,19 +30,18 @@ function idxToCode(i) { return tileTypes[i].code; }
 function idxToName(i) { return tileTypes[i].name; }
 
 /* ---------------------------
-   ゲーム状態（改良：discardsを4箇所に分割）
+   ゲーム状態
    --------------------------- */
 const state = {
   wall: [],
-  // discard per player: index 0..3
-  discards: [[],[],[],[]],
-  players: [[],[],[],[]], // 0:南=あなた, 1:西, 2:北, 3:東
+  discards: [[],[],[],[]], // per-player discards: 0:南,1:西,2:北,3:東
+  players: [[],[],[],[]],
   melds: [[],[],[],[]],
   currentPlayer: 0,
 };
 
 /* ---------------------------
-   山作成・シャッフル・配牌（変更：discards初期化）
+   山作成・配牌
    --------------------------- */
 function buildWall() {
   const wall = [];
@@ -67,12 +62,10 @@ function shuffle(array) {
     [array[i], array[j]] = [array[j], array[i]];
   }
 }
-
 function deal() {
   state.players = [[],[],[],[]];
   state.discards = [[],[],[],[]];
   state.melds = [[],[],[],[]];
-  state.discardHistory = []; // deprecated but keep for compatibility
   state.wall = buildWall();
   shuffle(state.wall);
 
@@ -87,7 +80,7 @@ function deal() {
 }
 
 /* ---------------------------
-   UI: 牌描画（SVGを利用） - ほぼ以前と同様
+   牌描画（SVG）: 文字サイズを大きく表示する
    --------------------------- */
 const tileTemplate = document.getElementById('tile-template');
 function createTileElement(tile) {
@@ -101,32 +94,35 @@ function createTileElement(tile) {
   if (code.match(/^[1-9][mps]$/)) {
     const num = code[0];
     const suit = code[1];
+    // 左上にスート文字（小）
     const suitText = document.createElementNS("http://www.w3.org/2000/svg","text");
     suitText.setAttribute("x","6");
-    suitText.setAttribute("y","18");
-    suitText.setAttribute("font-size","10");
+    suitText.setAttribute("y","16");
+    suitText.setAttribute("font-size","9");
     suitText.setAttribute("fill","#666");
     suitText.textContent = suit === 'm' ? '萬' : suit === 'p' ? '筒' : '索';
     g.appendChild(suitText);
 
+    // 中央大きな数字（文字を大きく）
     const numText = document.createElementNS("http://www.w3.org/2000/svg","text");
     numText.setAttribute("x","50");
-    numText.setAttribute("y","90");
+    numText.setAttribute("y","82");
     numText.setAttribute("text-anchor","middle");
-    numText.setAttribute("font-size","44");
+    numText.setAttribute("font-size","54"); // 以前より大きめ
     numText.setAttribute("fill", code[0]==='5' ? '#ef4444' : '#111');
-    numText.setAttribute("font-weight","600");
+    numText.setAttribute("font-weight","700");
     numText.textContent = num;
     g.appendChild(numText);
   } else {
+    // 字牌
     const kanji = (code === 'E' ? '東' : code === 'S' ? '南' : code === 'W' ? '西' : code === 'N' ? '北' : code === 'P' ? '白' : code === 'F' ? '發' : '中');
     const kText = document.createElementNS("http://www.w3.org/2000/svg","text");
     kText.setAttribute("x","50");
-    kText.setAttribute("y","78");
+    kText.setAttribute("y","82");
     kText.setAttribute("text-anchor","middle");
-    kText.setAttribute("font-size","44");
+    kText.setAttribute("font-size","54"); // 文字を大きく
     kText.setAttribute("fill", (code==='P'?'#111': code==='F'?'#0b7a3e': code==='C'?'#c91919':'#111'));
-    kText.setAttribute("font-weight","700");
+    kText.setAttribute("font-weight","800");
     kText.textContent = kanji;
     g.appendChild(kText);
   }
@@ -136,7 +132,7 @@ function createTileElement(tile) {
 }
 
 /* ---------------------------
-   レンダリング：各プレイヤーの捨て牌をそれぞれのエリアに表示（右に増える）
+   レンダリング：各プレイヤー別捨て牌（右へ増える）と自分手牌の横並び
    --------------------------- */
 function renderAll() {
   document.getElementById('wall-count').textContent = state.wall.length;
@@ -144,9 +140,6 @@ function renderAll() {
   document.querySelector('#player-east .count').textContent = state.players[3].length;
   document.querySelector('#player-west .count').textContent = state.players[1].length;
 
-  // 各プレイヤーの捨て牌エリアをレンダリング（左から右へ追加していく）
-  const ids = ['south','west','north','east']; // map player index to element id
-  // mapping: player 0->south, 1->west, 2->north, 3->east
   const mapping = {
     0: 'discard-pile-south',
     1: 'discard-pile-west',
@@ -156,14 +149,14 @@ function renderAll() {
   for (let p=0;p<4;p++) {
     const pileDiv = document.getElementById(mapping[p]);
     pileDiv.innerHTML = '';
-    // append in natural order so new items are rightmost
+    // 追加順にappendして右側に増える仕様
     state.discards[p].forEach(t => {
       const el = createTileElement(t);
-      pileDiv.appendChild(el); // append -> grows to the right
+      pileDiv.appendChild(el);
     });
   }
 
-  // 自分の手牌（クリックで捨て）
+  // 自分の手牌は横並びに表示（クリックで捨て）
   const myDiv = document.getElementById('player-south');
   myDiv.innerHTML = '';
   state.players[0].forEach((t, idx) => {
@@ -175,14 +168,14 @@ function renderAll() {
     myDiv.appendChild(el);
   });
 
-  // 副露表示（将来対応）
+  // 副露表示（将来拡張）
   const meldsDiv = document.getElementById('melds');
   const m = state.melds[0];
   meldsDiv.textContent = '副露: ' + (m.length ? m.map(mm=>mm.join(',')).join(' | ') : 'なし');
 }
 
 /* ---------------------------
-   ツモ・捨ての簡易ロジック（変更：discards配列へpush）
+   ツモ・捨てロジック
    --------------------------- */
 function drawTileForCurrent() {
   if (state.wall.length === 0) {
@@ -202,8 +195,8 @@ function drawTileForCurrent() {
 }
 
 function discardTile(playerIndex, handIndex) {
+  // プレイヤーhandIndexが-1（AIや自動）でも対応可能
   const tile = state.players[playerIndex].splice(handIndex,1)[0];
-  // push into that player's discard pile (so display shows who discarded)
   state.discards[playerIndex].push(tile);
   renderAll();
 
@@ -226,9 +219,9 @@ document.getElementById('draw-button').addEventListener('click', () => {
 document.getElementById('new-game').addEventListener('click', () => deal());
 
 document.getElementById('evaluate-hand').addEventListener('click', () => {
-  const winMethod = document.getElementById('win-method').value; // "ron" or "tsumo"
-  const roundWind = document.getElementById('round-wind').value; // E or S
-  const seatWind = document.getElementById('seat-wind').value; // E,S,W,N
+  const winMethod = document.getElementById('win-method').value;
+  const roundWind = document.getElementById('round-wind').value;
+  const seatWind = document.getElementById('seat-wind').value;
   const doraInput = prompt('ドラ表示牌コードをカンマ区切りで入力してください（例: 1m,5p,中）。空なら無し。', '');
   const doraIndicators = (doraInput || '').split(',').map(s=>s.trim()).filter(Boolean);
   const playerTiles = state.players[0].map(t => t.code);
@@ -237,12 +230,8 @@ document.getElementById('evaluate-hand').addEventListener('click', () => {
 });
 
 /* ---------------------------
-   以下: 和了判定/役判定/点数計算ライブラリ（以前の実装をそのまま保持）
-   - evaluateHand などは元の実装と互換性あり
+   結果レンダリング
    --------------------------- */
-
-/* (和了判定ライブラリ: 元の実装をそのまま移植) */
-
 function renderResult(result) {
   const yakuDiv = document.getElementById('yaku-list');
   const scoreDiv = document.getElementById('score-summary');
@@ -271,8 +260,8 @@ function renderResult(result) {
 }
 
 /* ---------------------------
-   evaluateHand と各種判定関数（元のまま） 
-   ※ ここでは冗長にならないよう関数群をそのまま貼っています（完全コピペで動作します）
+   和了判定・役判定・点数計算ライブラリ（元の実装ベース）
+   evaluateHand(...) を含む完全実装（簡易ルール上の近似あり）
    --------------------------- */
 
 function countDora(tilesArray, doraIndicators) {
@@ -306,7 +295,7 @@ function isChiitoitsu(counts) {
   for (let i=0;i<34;i++) {
     if (counts[i] === 1 || counts[i] === 3) return false;
     if (counts[i] === 2) pairs++;
-    if (counts[i] === 4) return false; // conservative
+    if (counts[i] === 4) return false; // conservative: treat 4-of-kind as invalid for 七対子 here
   }
   return pairs === 7;
 }
@@ -365,6 +354,7 @@ function rankOfIndex(i) {
   if (i>=18 && i<=26) return i-18+1;
   return null;
 }
+
 function isYakuhaiPair(pairIdx, seatWind, roundWind) {
   if (pairIdx >= 27 && pairIdx <= 33) {
     const code = idxToCode(pairIdx);
@@ -374,6 +364,7 @@ function isYakuhaiPair(pairIdx, seatWind, roundWind) {
   }
   return false;
 }
+
 function isPairRyanmenWait(counts, pairIdx, groups, tilesArray, winTile) {
   if (!winTile) return false;
   try {
@@ -390,6 +381,7 @@ function isPairRyanmenWait(counts, pairIdx, groups, tilesArray, winTile) {
     return false;
   } catch(e) { return false; }
 }
+
 function isTanyao(tilesArray, melds) {
   for (const t of tilesArray) {
     const code = t;
@@ -406,11 +398,13 @@ function isTanyao(tilesArray, melds) {
   }
   return true;
 }
+
 function seqSignature(tiles) {
   const s = suitOfIndex(tiles[0]);
   const r = rankOfIndex(tiles[0]);
   return `${s}-${r}`;
 }
+
 function detectSanshoku(groups) {
   const seqs = groups.filter(g=>g.type==='chi').map(g=>({
     s: suitOfIndex(g.tiles[0]),
@@ -427,6 +421,7 @@ function detectSanshoku(groups) {
   }
   return false;
 }
+
 function detectIttsuu(groups) {
   const map = {m:new Set(), p:new Set(), s:new Set()};
   groups.filter(g=>g.type==='chi').forEach(g => {
@@ -439,6 +434,7 @@ function detectIttsuu(groups) {
   }
   return false;
 }
+
 function detectFlush(tilesArray) {
   const suitsPresent = new Set();
   let honorsPresent = false;
@@ -450,20 +446,23 @@ function detectFlush(tilesArray) {
   if (suitsPresent.size === 1 && honorsPresent) return {type:'honitsu'};
   return {type:null};
 }
+
 function detectSanankou(groups, melds, tilesArray) {
   const ponCount = groups.filter(g=>g.type==='pon').length;
   const hasOpenPon = (melds && melds.some(m => m.type === 'pon' || m.type === 'kan'));
   if (!hasOpenPon && ponCount >= 3) return true;
   return false;
 }
+
 function detectSanGen(counts) {
-  const dragonsIdx = [31,32,33];
+  const dragonsIdx = [31,32,33]; // P,F,C
   const cnts = dragonsIdx.map(i => counts[i]);
   const ponCount = cnts.filter(c => c >= 3).length;
   if (ponCount === 3) return 'dai';
   if (ponCount === 2 && cnts.some(c => c === 2)) return 'shou';
   return null;
 }
+
 function detectYakuhai(counts, seatWind, roundWind) {
   const yakuhaiTiles = [];
   if (roundWind) yakuhaiTiles.push(roundWind);
@@ -476,6 +475,7 @@ function detectYakuhai(counts, seatWind, roundWind) {
   }
   return cnt;
 }
+
 function isChinroutou(counts) {
   for (let i=0;i<34;i++) {
     if (counts[i] === 0) continue;
@@ -486,6 +486,7 @@ function isChinroutou(counts) {
   }
   return true;
 }
+
 function isTsuisou(counts) {
   for (let i=0;i<34;i++) {
     if (counts[i] === 0) continue;
@@ -493,6 +494,7 @@ function isTsuisou(counts) {
   }
   return true;
 }
+
 function isRyuuiisou(counts) {
   const allowed = new Set(['2s','3s','4s','6s','8s','F']);
   for (let i=0;i<34;i++) {
@@ -501,6 +503,7 @@ function isRyuuiisou(counts) {
   }
   return true;
 }
+
 function isChuren(counts) {
   for (const s of ['m','p','s']) {
     const offset = s==='m'?0:s==='p'?9:18;
@@ -513,9 +516,8 @@ function isChuren(counts) {
       if (counts[idx] < needed[i]) { ok = false; break; }
     }
     if (!ok) continue;
-    const suitTotal = (new Array(9)).map((_,i)=>counts[offset+i]).reduce((a,b)=>a+b,0);
+    const suitTotal = Array.from({length:9}, (_,i)=>counts[offset+i]).reduce((a,b)=>a+b,0);
     if (suitTotal === 14) return true;
-    if (suitTotal === 14 || suitTotal === 14) return true;
   }
   return false;
 }
@@ -560,6 +562,7 @@ function computeBasePoints(totalHan, fu, yakuList) {
   }
   return Math.floor(base);
 }
+
 function computeScoreSummary(basePoints, totalHan, isTsumo, isDealer) {
   const capTo100 = x => Math.ceil(x/100)*100;
   const dealerWin = isDealer || false;
@@ -614,12 +617,10 @@ function evaluateHand(tilesArray, melds = [], isTsumo=false, winTile=null, seatW
   const candidates = [];
   decomps.forEach(decomp => {
     const yakuList = [];
-    const tilesFlat = tilesArray.slice();
     const pairIdx = decomp.pair;
     const groups = decomp.groups;
     const isAllSequences = groups.every(g => g.type === 'chi');
     const isAllTriplets = groups.every(g => g.type === 'pon');
-    const hasTriplet = groups.some(g => g.type === 'pon');
     if (isClosed && riichiDeclared) {
       yakuList.push({name:'立直', han:1, isYakuman:false});
     }
@@ -648,8 +649,7 @@ function evaluateHand(tilesArray, melds = [], isTsumo=false, winTile=null, seatW
         yakuList.push({name:'二盃口', han:2, isYakuman:false});
       }
     }
-    const sanshoku = detectSanshoku(groups);
-    if (sanshoku) {
+    if (detectSanshoku(groups)) {
       yakuList.push({name:'三色同順', han:1, isYakuman:false});
     }
     if (detectIttsuu(groups)) {
@@ -667,8 +667,6 @@ function evaluateHand(tilesArray, melds = [], isTsumo=false, winTile=null, seatW
     if (detectSanankou(groups, melds, tilesArray)) {
       yakuList.push({name:'三暗刻', han:2, isYakuman:false});
     }
-    const dragonYaku = detectSanGen(new Array(34).fill(0).map((_,i)=>0).map((_,i)=>0)); // placeholder, will be recalculated below
-    // Recompute counts for dragon detection properly:
     const countsNow = new Array(34).fill(0);
     tilesArray.forEach(c => countsNow[codeToIndex[c]]++);
     const dragonYakuReal = detectSanGen(countsNow);
@@ -700,9 +698,7 @@ function evaluateHand(tilesArray, melds = [], isTsumo=false, winTile=null, seatW
       yakuList.push({name:'立直', han:1, isYakuman:false});
     }
     const yakumanCount = yakuList.filter(y=>y.isYakuman).length;
-    let totalHan = yakumanCount > 0 ?
-                   yakumanCount * 13 :
-                   yakuList.filter(y=>!y.isYakuman).reduce((s,y)=>s+y.han,0);
+    let totalHan = yakumanCount > 0 ? yakumanCount * 13 : yakuList.filter(y=>!y.isYakuman).reduce((s,y)=>s+y.han,0);
     const fu = calculateFu(countsNow, groups, decomp.pair, isTsumo, isClosed, yakuList);
     const basePoints = computeBasePoints(totalHan, fu, yakuList);
     const score = computeScoreSummary(basePoints, totalHan, isTsumo, false);
@@ -726,7 +722,7 @@ function evaluateHand(tilesArray, melds = [], isTsumo=false, winTile=null, seatW
 }
 
 /* ---------------------------
-   テスト用/デバッグ用に一部関数を window に公開
+   デバッグ向けのエクスポート
    --------------------------- */
 window._mahjong = {
   evaluateHand,
@@ -740,5 +736,5 @@ window._mahjong = {
   state
 };
 
-// 初回配牌
+/* 初回配牌 */
 deal();
