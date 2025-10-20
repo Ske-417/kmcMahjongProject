@@ -30,8 +30,8 @@ label { font-size:14px; display:flex; align-items:center; gap:6px; }
 #melds { padding:8px; min-width:180px; background:#fff; border-radius:6px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
 
 /* 牌表示 */
-/* 少し小さく、内部の文字は大きめにして視認性を向上 */
-.tile { width: 42px; height: 60px; cursor: pointer; user-select: none; }
+/* タイル全体を小さく（おおよそ半分）にし、内部文字はSVGで大きめに表示する */
+.tile { width: 22px; height: 32px; cursor: pointer; user-select: none; display:inline-block; }
 .tile svg { width:100%; height:100%; display:block; }
 .tile .tile-content text { font-family: "Hiragino Kaku Gothic Pro","メイリオ", system-ui; }
 
@@ -41,16 +41,17 @@ label { font-size:14px; display:flex; align-items:center; gap:6px; }
 /* 捨て牌エリア */
 .discard-area { background: rgba(255,255,255,0.95); padding:6px; border-radius:6px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); min-width:120px; }
 .discard-title { font-size:12px; color:#666; margin-bottom:6px; text-align:center; }
-.discard-pile { display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-start; align-items:center; min-height:40px; }
+.discard-pile { display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-start; align-items:center; min-height:36px; }
 
-/* 捨て牌のさらに小さいサイズ（さらに縮小） */
-.discard-pile .tile { width: 28px; height: 40px; }
+/* 捨て牌のさらに小さいサイズ（さらに縮小） - ほぼ同じ小タイル */
+.discard-pile .tile { width: 22px; height: 32px; }
 
-/* 捨て牌内の文字をやや小さくして見やすく */
-.discard-pile .tile .tile-content text { font-size:14px; }
+/* 牌内のテキスト（捨て牌）を大きく見せるためのCSSベーススタイル（実際のサイズはSVG側で調整） */
+.discard-pile .tile .tile-content text { /* SVG inline 属性を優先するため基本設定だけ */ }
 
 /* 自分の捨て牌は最大6個で折り返す（幅を6枚に制限） */
-#discard-pile-south { max-width: calc(6 * 28px + 5 * 6px); }
+/* 6 * tile width + 5 * gap */
+#discard-pile-south { max-width: calc(6 * 22px + 5 * 6px); }
 
 /* 結果表示 */
 #result-area { max-width: 1024px; margin: 12px auto; background: #fff; padding: 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
@@ -60,8 +61,8 @@ label { font-size:14px; display:flex; align-items:center; gap:6px; }
 /* 小画面対応 */
 @media (max-width: 640px) {
   #controls-row { flex-direction: column; align-items:flex-start; }
-  .tile { width: 36px; height: 52px; }
-  .discard-pile .tile { width: 24px; height: 34px; }
-  #discard-pile-south { max-width: calc(6 * 24px + 5 * 6px); }
+  .tile { width: 18px; height: 26px; }
+  .discard-pile .tile { width: 18px; height: 26px; }
+  #discard-pile-south { max-width: calc(6 * 18px + 5 * 6px); }
   .left-column, .right-column { width:120px; }
 }
