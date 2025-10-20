@@ -1,6 +1,11 @@
-// 完全版 script.js（省略なし）
-// 変更点要約：タイルを小さく（約半分）にし、内部の文字をできるだけ大きく見えるようSVGフォントサイズを増大させました。
-// 捨て牌・手牌の表示は同様、かつ自分のターンでなければ捨てられない制御を維持します。
+// 完全版 script.js — 省略なし
+// 変更点要約：
+// - レイアウトを画面幅80%に調整
+// - タイルの四角を小さく（CSSで小さく）にしつつ、SVG内の文字/絵を大きめに描画して判読性を確保
+// - 筒子（p）と索子（s）は簡易な絵（ピンズは丸、ソーズは竹風）で描画
+// - 字牌（E,S,W,N,P,F,C）は漢字のまま中央に大きく描画（見切れないようY位置とbaselineを調整）
+// - 自分の手牌は自分の番のみクリックで捨てられる（その他はdisabled）
+// - 捨て牌は各プレイヤー別表示、右へ追加、南の捨て牌は6枚で折り返し
 
 /* ---------------------------
    牌定義
@@ -68,55 +73,140 @@ function deal() {
 }
 
 /* ---------------------------
-   SVG牌描画（文字を大きめに）:
-   - opts.small: 捨て牌用の描画（SVG上でさらに大きなフォント値を指定して、縮小後も文字が大きく見えるように）
+   SVG牌描画（改良）
+   - opts.small: 捨て牌用に描画を微調整（位置/サイズ）
+   - ピンズ（p）: ドット絵を描画
+   - ソーズ（s）: 竹風の棒を描画
+   - マンズ（m）: 数字＋「萬」
+   - 字牌: 漢字を中央に表示
    --------------------------- */
 const tileTemplate = document.getElementById('tile-template');
 
 function createTileElement(tile, opts={small:false}) {
   const tpl = tileTemplate.content.cloneNode(true);
   const tileEl = tpl.querySelector('.tile');
-  const g = tileEl.querySelector('.tile-content');
+  const svgGroup = tileEl.querySelector('.tile-content');
   const code = tile.code;
-  while (g.firstChild) g.removeChild(g.firstChild);
+  while (svgGroup.firstChild) svgGroup.removeChild(svgGroup.firstChild);
+
+  // parameters for sizes: small tiles are drawn with SVG elements sized larger (so they remain legible after CSS scaling)
+  const largeNumberSize = opts.small ? 72 : 90; // large font inside SVG (SVG will be scaled down by CSS)
+  const suitMarkerSize = opts.small ? 10 : 14;
+  const centerY = opts.small ? 70 : 82;
 
   if (code.match(/^[1-9][mps]$/)) {
-    const num = code[0], suit = code[1];
+    const num = code[0];
+    const suit = code[1];
 
-    // スート文字（見やすく）
-    const suitText = document.createElementNS("http://www.w3.org/2000/svg","text");
-    suitText.setAttribute("x","10");
-    suitText.setAttribute("y", opts.small ? "16" : "20");
-    // フォントサイズは大きめにしておく（SVGは後に縮小されるのでOK）
-    suitText.setAttribute("font-size", opts.small ? "14" : "18");
-    suitText.setAttribute("fill","#2b2b2b");
-    suitText.setAttribute("font-weight","700");
-    suitText.textContent = suit === 'm' ? '萬' : suit === 'p' ? '筒' : '索';
-    g.appendChild(suitText);
+    if (suit === 'p') {
+      // ピンズ (筒子): 丸をいくつか描く（配置は数によって変える）
+      const dotsGroup = document.createElementNS("http://www.w3.org/2000/svg","g");
+      const positionsMap = {
+        1: [[50, centerY]],
+        2: [[40, centerY-8],[60, centerY+8]],
+        3: [[50, centerY-12],[50, centerY],[50, centerY+12]],
+        4: [[40, centerY-12],[60, centerY-12],[40, centerY+12],[60, centerY+12]],
+        5: [[40, centerY-12],[60, centerY-12],[50, centerY],[40, centerY+12],[60, centerY+12]],
+        6: [[40, centerY-14],[60, centerY-14],[40, centerY],[60, centerY],[40, centerY+14],[60, centerY+14]],
+        7: [[50, centerY-20],[40, centerY-8],[60, centerY-8],[40, centerY+8],[60, centerY+8],[50, centerY+20],[50, centerY]],
+        8: [[40, centerY-20],[60, centerY-20],[40, centerY-7],[60, centerY-7],[40, centerY+7],[60, centerY+7],[40, centerY+20],[60, centerY+20]],
+        9: [[50, centerY-24],[40, centerY-12],[60, centerY-12],[40, centerY],[60, centerY],[40, centerY+12],[60, centerY+12],[50, centerY+24],[50, centerY]]
+      };
+      const positions = positionsMap[num] || [[50, centerY]];
+      positions.forEach(pos => {
+        const c = document.createElementNS("http://www.w3.org/2000/svg","circle");
+        c.setAttribute("cx", pos[0]);
+        c.setAttribute("cy", pos[1]);
+        c.setAttribute("r", suitMarkerSize);
+        c.setAttribute("fill", num === '5' ? '#ef4444' : '#1f4f8b');
+        c.setAttribute("stroke","#000");
+        c.setAttribute("stroke-width", opts.small ? "0.6" : "1");
+        dotsGroup.appendChild(c);
+      });
+      svgGroup.appendChild(dotsGroup);
 
-    // 中央大きな数字（SVG上では大きく）
-    const numText = document.createElementNS("http://www.w3.org/2000/svg","text");
-    numText.setAttribute("x","50");
-    numText.setAttribute("y", opts.small ? "78" : "86");
-    numText.setAttribute("text-anchor","middle");
-    // 非常に大きめにしておき、実際の表示はCSSで縮小されるため視認性確保
-    numText.setAttribute("font-size", opts.small ? "120" : "100");
-    numText.setAttribute("fill", num==='5' ? '#ef4444' : '#111');
-    numText.setAttribute("font-weight","800");
-    numText.textContent = num;
-    g.appendChild(numText);
+      // optional small "筒" marker left-top
+      const suitText = document.createElementNS("http://www.w3.org/2000/svg","text");
+      suitText.setAttribute("x","10");
+      suitText.setAttribute("y", opts.small ? "16" : "20");
+      suitText.setAttribute("font-size", opts.small ? "12" : "16");
+      suitText.setAttribute("fill","#2b2b2b");
+      suitText.setAttribute("font-weight","700");
+      suitText.textContent = '筒';
+      svgGroup.appendChild(suitText);
+
+    } else if (suit === 's') {
+      // ソーズ (索子): 竹風の棒を描く
+      const sticks = document.createElementNS("http://www.w3.org/2000/svg","g");
+      const baseX = 28;
+      const gap = 10;
+      const colors = ['#0b7a3e','#0b9d4a','#0b7a3e'];
+      for (let i=0;i<3;i++) {
+        const x = baseX + i*gap;
+        const rect = document.createElementNS("http://www.w3.org/2000/svg","rect");
+        rect.setAttribute("x", x);
+        rect.setAttribute("y", centerY - 24);
+        rect.setAttribute("width", 6);
+        rect.setAttribute("height", 48);
+        rect.setAttribute("rx", 2);
+        rect.setAttribute("fill", colors[i % colors.length]);
+        sticks.appendChild(rect);
+        // small accent circle
+        const circ = document.createElementNS("http://www.w3.org/2000/svg","circle");
+        circ.setAttribute("cx", x+3);
+        circ.setAttribute("cy", centerY);
+        circ.setAttribute("r", opts.small ? 3.2 : 4.5);
+        circ.setAttribute("fill","#dff7e6");
+        sticks.appendChild(circ);
+      }
+      svgGroup.appendChild(sticks);
+
+      const suitText = document.createElementNS("http://www.w3.org/2000/svg","text");
+      suitText.setAttribute("x","10");
+      suitText.setAttribute("y", opts.small ? "16" : "20");
+      suitText.setAttribute("font-size", opts.small ? "12" : "16");
+      suitText.setAttribute("fill","#2b2b2b");
+      suitText.setAttribute("font-weight","700");
+      suitText.textContent = '索';
+      svgGroup.appendChild(suitText);
+
+    } else {
+      // マンズ (萬): 数字と「萬」
+      const suitText = document.createElementNS("http://www.w3.org/2000/svg","text");
+      suitText.setAttribute("x","10");
+      suitText.setAttribute("y", opts.small ? "16" : "20");
+      suitText.setAttribute("font-size", opts.small ? "12" : "16");
+      suitText.setAttribute("fill","#2b2b2b");
+      suitText.setAttribute("font-weight","700");
+      suitText.textContent = '萬';
+      svgGroup.appendChild(suitText);
+
+      const numText = document.createElementNS("http://www.w3.org/2000/svg","text");
+      numText.setAttribute("x","50");
+      numText.setAttribute("y", centerY);
+      numText.setAttribute("text-anchor","middle");
+      numText.setAttribute("font-size", largeNumberSize);
+      numText.setAttribute("fill", num === '5' ? '#ef4444' : '#111');
+      numText.setAttribute("font-weight","800");
+      numText.setAttribute("dominant-baseline","middle");
+      numText.textContent = num;
+      svgGroup.appendChild(numText);
+    }
+
   } else {
-    // 字牌
+    // 字牌（漢字中央表示） - 見切れないように中央に配置して大きめ
     const kanji = (code === 'E' ? '東' : code === 'S' ? '南' : code === 'W' ? '西' : code === 'N' ? '北' : code === 'P' ? '白' : code === 'F' ? '發' : '中');
     const kText = document.createElementNS("http://www.w3.org/2000/svg","text");
     kText.setAttribute("x","50");
-    kText.setAttribute("y", opts.small ? "78" : "86");
+    kText.setAttribute("y", centerY);
     kText.setAttribute("text-anchor","middle");
-    kText.setAttribute("font-size", opts.small ? "120" : "100");
+    // 大きめのフォントで中心合わせ、dominant-baselineで中央揃え
+    kText.setAttribute("font-size", opts.small ? "80" : "96");
     kText.setAttribute("fill", (code==='P'?'#111': code==='F'?'#0b7a3e': code==='C'?'#c91919':'#111'));
     kText.setAttribute("font-weight","900");
+    kText.setAttribute("dominant-baseline","middle");
     kText.textContent = kanji;
-    g.appendChild(kText);
+    svgGroup.appendChild(kText);
   }
 
   tileEl._tile = tile;
@@ -125,8 +215,6 @@ function createTileElement(tile, opts={small:false}) {
 
 /* ---------------------------
    レンダリング
-   - 各プレイヤーの捨て牌はそれぞれのエリアへ（右へ追加）
-   - 自分の手牌は自分の番のみクリック可能
    --------------------------- */
 function renderAll() {
   document.getElementById('wall-count').textContent = state.wall.length;
@@ -140,7 +228,7 @@ function renderAll() {
     pileDiv.innerHTML = '';
     state.discards[p].forEach(t => {
       const el = createTileElement(t, {small:true});
-      pileDiv.appendChild(el); // append -> right growth
+      pileDiv.appendChild(el);
     });
   }
 
@@ -245,18 +333,9 @@ function renderResult(result) {
 }
 
 /* ---------------------------
-   和了判定・役判定・符計算ライブラリ（先に実装済みの完全版をそのまま使用）
-   evaluateHand と補助関数群（省略せず全て含む）
-   --------------------------- */
-
-/* --- evaluateHand と補助関群 --- */
-/* (ここに evaluateHand, decomposeStandard, calculateFuEnhanced, wait判定等
-   前のやり取りで提示した完全実装をそのまま含めます。) */
-
-/* 省略せずに続けます: */
-
-/* ---------------------------
-   和了判定関数群（全文）
+   和了判定・役判定・符計算ライブラリ（完全版）
+   - evaluateHand(tilesArray, melds, isTsumo, winTile, seatWind, roundWind, doraIndicators, riichiDeclared)
+   - 返り値: { yaku: [{name,han,isYakuman}], totalHan, fu, basePoints, score }
    --------------------------- */
 
 function evaluateHand(tilesArray, melds = [], isTsumo=false, winTile=null, seatWind='S', roundWind='E', doraIndicators = [], riichiDeclared=false) {
@@ -276,7 +355,6 @@ function evaluateHand(tilesArray, melds = [], isTsumo=false, winTile=null, seatW
   const yakusFound = [];
   const isClosed = !(melds && melds.length > 0);
 
-  // 国士無双・七対子
   if (isKokushi(counts)) yakusFound.push({name:'国士無双', han:13, isYakuman:true});
   if (isChiitoitsu(counts)) yakusFound.push({name:'七対子', han:2, isYakuman:false});
 
