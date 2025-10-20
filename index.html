@@ -37,21 +37,45 @@
   </div>
 
   <div id="game">
-    <div class="opponent" id="player-north">北: <span class="count">0</span>枚</div>
+    <div class="opponent-row">
+      <div class="opponent" id="player-north">北: <span class="count">0</span>枚</div>
+      <div class="discard-area" id="discard-north" data-player="2" aria-label="北の捨て牌">
+        <div class="discard-title">北の捨て牌</div>
+        <div class="discard-pile" id="discard-pile-north"></div>
+      </div>
+    </div>
 
     <div class="middle-row">
-      <div class="opponent" id="player-west">西: <span class="count">0</span>枚</div>
+      <div class="left-column">
+        <div class="opponent" id="player-west">西: <span class="count">0</span>枚</div>
+        <div class="discard-area" id="discard-west" data-player="1" aria-label="西の捨て牌">
+          <div class="discard-title">西の捨て牌</div>
+          <div class="discard-pile" id="discard-pile-west"></div>
+        </div>
+      </div>
 
       <div id="table">
         <div id="wall">山: <span id="wall-count">0</span></div>
-        <div id="discard-pile">捨て牌:</div>
+        <div id="table-center"></div>
       </div>
 
-      <div class="opponent" id="player-east">東: <span class="count">0</span>枚</div>
+      <div class="right-column">
+        <div class="opponent" id="player-east">東: <span class="count">0</span>枚</div>
+        <div class="discard-area" id="discard-east" data-player="3" aria-label="東の捨て牌">
+          <div class="discard-title">東の捨て牌</div>
+          <div class="discard-pile" id="discard-pile-east"></div>
+        </div>
+      </div>
     </div>
 
     <div id="player-south-area">
-      <div id="player-south">あなたの手牌:</div>
+      <div id="player-south-column">
+        <div id="player-south">あなたの手牌:</div>
+        <div class="discard-area" id="discard-south" data-player="0" aria-label="南の捨て牌">
+          <div class="discard-title">南の捨て牌</div>
+          <div class="discard-pile" id="discard-pile-south"></div>
+        </div>
+      </div>
       <div id="melds">副露: なし</div>
     </div>
   </div>
