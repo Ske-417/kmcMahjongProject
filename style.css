@@ -1,68 +1,65 @@
 /* 全体 */
 body {
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-  padding: 16px;
+  padding: 12px;
   background: #f6f7fb;
   color: #111827;
+  margin: 0;
 }
-h1 { margin-bottom: 8px; font-size:20px; }
-#controls-row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
-button { padding:6px 10px; border-radius:6px; border:1px solid #ccc; background:#fff; cursor:pointer; }
-label { font-size:14px; display:flex; align-items:center; gap:6px; }
+h1 { margin: 8px 0 12px 0; font-size:18px; }
 
-/* ゲーム領域 */
-#game { display: flex; flex-direction: column; gap: 12px; max-width: 1024px; margin: auto; }
-.opponent-row { display:flex; justify-content: center; gap: 24px; align-items:center; }
-.middle-row { display:flex; justify-content: space-between; gap: 12px; align-items:flex-start; }
-.left-column, .right-column { display:flex; flex-direction: column; gap:8px; align-items:center; width:160px; }
-.opponent { background: #fff; padding: 8px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); width:120px; text-align:center; font-size:14px; }
-#table { flex: 1; background: #fff; padding: 8px; border-radius: 6px; text-align: center; min-height:120px; display:flex; flex-direction:column; align-items:center; justify-content:center; }
-#wall { margin-bottom:8px; font-weight:600; }
+/* コントロール行 */
+#controls-row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:10px; }
+button { padding:6px 10px; border-radius:6px; border:1px solid #ccc; background:#fff; cursor:pointer; }
+label { font-size:13px; display:flex; align-items:center; gap:6px; }
+
+/* ゲーム領域：画面幅の約80%を使用して中央配置 */
+#game { width:80vw; max-width:1200px; margin: 0 auto 16px auto; display:flex; flex-direction:column; gap:10px; }
+.opponent-row { display:flex; justify-content:center; gap:18px; align-items:center; }
+.middle-row { display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
+.left-column, .right-column { display:flex; flex-direction: column; gap:8px; align-items:center; width:150px; }
+.opponent { background:#fff; padding:8px; border-radius:6px; box-shadow:0 1px 3px rgba(0,0,0,0.06); width:120px; text-align:center; font-size:13px; }
+#table { flex:1; background:#fff; padding:8px; border-radius:6px; text-align:center; min-height:120px; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+#wall { margin-bottom:6px; font-weight:600; }
 
 /* プレイヤー南エリア */
-#player-south-area { background: #fff; padding: 8px; border-radius: 6px; display:flex; justify-content: space-between; align-items:flex-start; gap: 12px; }
-#player-south-column { display:flex; flex-direction: row; gap:12px; align-items:flex-start; }
-
-/* 自分の手牌を横並びにする */
+#player-south-area { background:#fff; padding:8px; border-radius:6px; display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+#player-south-column { display:flex; flex-direction:row; gap:10px; align-items:flex-start; }
 #player-south { display:flex; flex-direction:row; gap:6px; flex-wrap:wrap; align-items:center; }
 
 /* 副露表示 */
-#melds { padding:8px; min-width:180px; background:#fff; border-radius:6px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+#melds { padding:8px; min-width:160px; background:#fff; border-radius:6px; box-shadow:0 1px 3px rgba(0,0,0,0.04); }
 
-/* 牌表示 */
-/* タイル全体を小さく（おおよそ半分）にし、内部文字はSVGで大きめに表示する */
-.tile { width: 22px; height: 32px; cursor: pointer; user-select: none; display:inline-block; }
-.tile svg { width:100%; height:100%; display:block; }
-.tile .tile-content text { font-family: "Hiragino Kaku Gothic Pro","メイリオ", system-ui; }
+/* 牌表示（タイルを小さく、テキストはSVGで大きめに確保） */
+/* タイルの外形は小さめに（ユーザ指定の「小さく」） */
+.tile { width: 20px; height: 30px; cursor: pointer; user-select: none; display:inline-block; vertical-align:middle; }
+.tile svg { width:100%; height:100%; display:block; overflow:visible; }
+.tile .tile-content text { font-family:"Hiragino Kaku Gothic Pro","メイリオ", system-ui; dominant-baseline:middle; text-anchor:middle; }
 
 /* 無効状態のタイル（自分の番でないときに付与） */
-.tile.disabled { opacity: 0.6; cursor: default; pointer-events: none; }
+.tile.disabled { opacity: 0.5; cursor: default; pointer-events: none; }
 
 /* 捨て牌エリア */
-.discard-area { background: rgba(255,255,255,0.95); padding:6px; border-radius:6px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); min-width:120px; }
+.discard-area { background: rgba(255,255,255,0.95); padding:6px; border-radius:6px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); min-width:110px; }
 .discard-title { font-size:12px; color:#666; margin-bottom:6px; text-align:center; }
 .discard-pile { display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-start; align-items:center; min-height:36px; }
 
-/* 捨て牌のさらに小さいサイズ（さらに縮小） - ほぼ同じ小タイル */
-.discard-pile .tile { width: 22px; height: 32px; }
-
-/* 牌内のテキスト（捨て牌）を大きく見せるためのCSSベーススタイル（実際のサイズはSVG側で調整） */
-.discard-pile .tile .tile-content text { /* SVG inline 属性を優先するため基本設定だけ */ }
+/* 捨て牌個別サイズ（小さいタイル） */
+.discard-pile .tile { width: 20px; height: 30px; }
 
 /* 自分の捨て牌は最大6個で折り返す（幅を6枚に制限） */
-/* 6 * tile width + 5 * gap */
-#discard-pile-south { max-width: calc(6 * 22px + 5 * 6px); }
+#discard-pile-south { max-width: calc(6 * 20px + 5 * 6px); }
 
 /* 結果表示 */
-#result-area { max-width: 1024px; margin: 12px auto; background: #fff; padding: 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
-#yaku-list { font-size: 15px; margin-bottom: 8px; }
+#result-area { width:80vw; max-width:1200px; margin: 0 auto 18px auto; background:#fff; padding:12px; border-radius:6px; box-shadow:0 1px 3px rgba(0,0,0,0.06); }
+#yaku-list { font-size:14px; margin-bottom:8px; }
 .yaku-item { display:inline-block; background:#f3f4f6; padding:6px 8px; margin:4px; border-radius:6px; }
 
 /* 小画面対応 */
 @media (max-width: 640px) {
-  #controls-row { flex-direction: column; align-items:flex-start; }
-  .tile { width: 18px; height: 26px; }
-  .discard-pile .tile { width: 18px; height: 26px; }
-  #discard-pile-south { max-width: calc(6 * 18px + 5 * 6px); }
-  .left-column, .right-column { width:120px; }
+  #game, #result-area { width:95vw; }
+  .tile { width: 16px; height: 24px; }
+  .discard-pile .tile { width: 16px; height: 24px; }
+  #discard-pile-south { max-width: calc(6 * 16px + 5 * 6px); }
+  .left-column, .right-column { width:100px; }
 }
