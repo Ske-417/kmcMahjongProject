@@ -1,8 +1,6 @@
-// 麻雀プロトタイプ - 完全版 script.js
-// - UI: 捨て牌を4箇所に分割、捨ては右に増える、自分の牌は自分の番のみ捨て可能
-// - SVG牌表示（スート文字を読みやすく）
-// - 和了判定・役判定・符計算（強化版）：evaluateHand を完全実装（国士/七対子/面子分解/役判定/符計算/点数計算含む）
-// - すべての関数を省略なしで収録（ユーザーの「省略禁止」に従っています）
+// 完全版 script.js（省略なし）
+// 変更点要約：タイルを小さく（約半分）にし、内部の文字をできるだけ大きく見えるようSVGフォントサイズを増大させました。
+// 捨て牌・手牌の表示は同様、かつ自分のターンでなければ捨てられない制御を維持します。
 
 /* ---------------------------
    牌定義
@@ -70,9 +68,11 @@ function deal() {
 }
 
 /* ---------------------------
-   SVG牌描画
+   SVG牌描画（文字を大きめに）:
+   - opts.small: 捨て牌用の描画（SVG上でさらに大きなフォント値を指定して、縮小後も文字が大きく見えるように）
    --------------------------- */
 const tileTemplate = document.getElementById('tile-template');
+
 function createTileElement(tile, opts={small:false}) {
   const tpl = tileTemplate.content.cloneNode(true);
   const tileEl = tpl.querySelector('.tile');
@@ -82,35 +82,39 @@ function createTileElement(tile, opts={small:false}) {
 
   if (code.match(/^[1-9][mps]$/)) {
     const num = code[0], suit = code[1];
-    // スート文字（見やすく大きめ）
+
+    // スート文字（見やすく）
     const suitText = document.createElementNS("http://www.w3.org/2000/svg","text");
-    suitText.setAttribute("x","8");
-    suitText.setAttribute("y", opts.small ? "14" : "18");
-    suitText.setAttribute("font-size", opts.small ? "10" : "14");
+    suitText.setAttribute("x","10");
+    suitText.setAttribute("y", opts.small ? "16" : "20");
+    // フォントサイズは大きめにしておく（SVGは後に縮小されるのでOK）
+    suitText.setAttribute("font-size", opts.small ? "14" : "18");
     suitText.setAttribute("fill","#2b2b2b");
-    suitText.setAttribute("font-weight","600");
+    suitText.setAttribute("font-weight","700");
     suitText.textContent = suit === 'm' ? '萬' : suit === 'p' ? '筒' : '索';
     g.appendChild(suitText);
 
-    // 中央大きな数字
+    // 中央大きな数字（SVG上では大きく）
     const numText = document.createElementNS("http://www.w3.org/2000/svg","text");
     numText.setAttribute("x","50");
-    numText.setAttribute("y", opts.small ? "74" : "82");
+    numText.setAttribute("y", opts.small ? "78" : "86");
     numText.setAttribute("text-anchor","middle");
-    numText.setAttribute("font-size", opts.small ? "44" : "54");
+    // 非常に大きめにしておき、実際の表示はCSSで縮小されるため視認性確保
+    numText.setAttribute("font-size", opts.small ? "120" : "100");
     numText.setAttribute("fill", num==='5' ? '#ef4444' : '#111');
-    numText.setAttribute("font-weight","700");
+    numText.setAttribute("font-weight","800");
     numText.textContent = num;
     g.appendChild(numText);
   } else {
+    // 字牌
     const kanji = (code === 'E' ? '東' : code === 'S' ? '南' : code === 'W' ? '西' : code === 'N' ? '北' : code === 'P' ? '白' : code === 'F' ? '發' : '中');
     const kText = document.createElementNS("http://www.w3.org/2000/svg","text");
     kText.setAttribute("x","50");
-    kText.setAttribute("y", opts.small ? "74" : "82");
+    kText.setAttribute("y", opts.small ? "78" : "86");
     kText.setAttribute("text-anchor","middle");
-    kText.setAttribute("font-size", opts.small ? "44" : "54");
+    kText.setAttribute("font-size", opts.small ? "120" : "100");
     kText.setAttribute("fill", (code==='P'?'#111': code==='F'?'#0b7a3e': code==='C'?'#c91919':'#111'));
-    kText.setAttribute("font-weight","800");
+    kText.setAttribute("font-weight","900");
     kText.textContent = kanji;
     g.appendChild(kText);
   }
@@ -121,6 +125,8 @@ function createTileElement(tile, opts={small:false}) {
 
 /* ---------------------------
    レンダリング
+   - 各プレイヤーの捨て牌はそれぞれのエリアへ（右へ追加）
+   - 自分の手牌は自分の番のみクリック可能
    --------------------------- */
 function renderAll() {
   document.getElementById('wall-count').textContent = state.wall.length;
@@ -134,7 +140,7 @@ function renderAll() {
     pileDiv.innerHTML = '';
     state.discards[p].forEach(t => {
       const el = createTileElement(t, {small:true});
-      pileDiv.appendChild(el); // append => right side growth
+      pileDiv.appendChild(el); // append -> right growth
     });
   }
 
@@ -174,7 +180,6 @@ function drawTileForCurrent() {
   }
 }
 function discardTile(playerIndex, handIndex) {
-  // safety: only allow human player to discard on their turn
   if (playerIndex === 0 && state.currentPlayer !== 0) {
     console.warn('discard blocked: not your turn');
     return;
@@ -240,9 +245,18 @@ function renderResult(result) {
 }
 
 /* ---------------------------
-   和了判定・役判定・符計算ライブラリ（完全版）
-   - evaluateHand(tilesArray, melds, isTsumo, winTile, seatWind, roundWind, doraIndicators, riichiDeclared)
-   - 返り値: { yaku: [{name,han,isYakuman}], totalHan, fu, basePoints, score }
+   和了判定・役判定・符計算ライブラリ（先に実装済みの完全版をそのまま使用）
+   evaluateHand と補助関数群（省略せず全て含む）
+   --------------------------- */
+
+/* --- evaluateHand と補助関群 --- */
+/* (ここに evaluateHand, decomposeStandard, calculateFuEnhanced, wait判定等
+   前のやり取りで提示した完全実装をそのまま含めます。) */
+
+/* 省略せずに続けます: */
+
+/* ---------------------------
+   和了判定関数群（全文）
    --------------------------- */
 
 function evaluateHand(tilesArray, melds = [], isTsumo=false, winTile=null, seatWind='S', roundWind='E', doraIndicators = [], riichiDeclared=false) {
@@ -338,7 +352,6 @@ function evaluateHand(tilesArray, melds = [], isTsumo=false, winTile=null, seatW
     if (doraCount > 0) for (let i=0;i<doraCount;i++) yakuList.push({name:'ドラ', han:1, isYakuman:false});
     if (riichiDeclared && isClosed) yakuList.push({name:'立直', han:1, isYakuman:false});
 
-    // 待ち判定（winTile が与えられている場合に判定）
     let waitType = 'unknown';
     if (winTile && !isTsumo) {
       waitType = detectWaitTypeForDecomp(tilesArray, decomp, winTile);
@@ -366,7 +379,7 @@ function evaluateHand(tilesArray, melds = [], isTsumo=false, winTile=null, seatW
 }
 
 /* ---------------------------
-   待ち判定関連ヘルパー（省略なし）
+   待ち判定関連ヘルパー（全文）
    --------------------------- */
 
 function detectWaitTypeForDecomp(tilesArray, decomp, winTileCode) {
@@ -426,7 +439,6 @@ function waitTypeFromGroupAndWin(group, winTileCode) {
     const a = tiles[0], b = tiles[1], c = tiles[2];
     if (winIdx === b) return 'kanchan';
     const rankA = rankOfIndex(a), rankC = rankOfIndex(c);
-    // penchan: 1-2-3 (win is 3) or 7-8-9 (win is 7)
     if (winIdx === c && rankA === 1) return 'penchan';
     if (winIdx === a && rankA === 7) return 'penchan';
     return 'ryanmen';
@@ -443,7 +455,7 @@ function guessWaitFromGroup(decomp, winTileCode) {
 }
 
 /* ---------------------------
-   符計算（強化版） - 省略なし
+   符計算（強化版） - 完全版
    --------------------------- */
 function calculateFuEnhanced(counts, groups, pairIdx, isTsumo, isClosed, yakuList, waitType, melds) {
   if (isChiitoitsu(counts)) return 25;
@@ -489,7 +501,7 @@ function calculateFuEnhanced(counts, groups, pairIdx, isTsumo, isClosed, yakuLis
 }
 
 /* ---------------------------
-   補助関数群（省略なし）
+   補助関数群（完全版）
    --------------------------- */
 function countDora(tilesArray, doraIndicators) {
   if (!doraIndicators || doraIndicators.length === 0) return 0;
